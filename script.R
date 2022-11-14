@@ -1,61 +1,32 @@
 # Environnement ----------------------------------------------------------
 
 rm(list = ls())
-if (!require("ggplot2")) install.packages("ggplot2")
-if (!require("stringr")) install.packages("stringr")
-if (!require("dplyr")) install.packages("dplyr")
-if (!require("tidyverse")) install.packages("tidyverse")
-if (!require("MASS")) install.packages("MASS")
-library(tidyverse)
+
 library(dplyr)
 library(MASS)
 library(forcats)
 library(yaml)
+library(arrow)
 api_pwd <- yaml::read_yaml("secrets.yaml")
 
 # Fonctions ----------------------------------------------------------------
-fonction_de_stat_agregee <- function(a, b = "moyenne", ...) {
-  ignoreNA <<- !ignoreNA
-  checkvalue <- FALSE
-  for (x in c("moyenne", "variance", "ecart-type", "sd", "ecart type")) {
-    checkvalue <- (checkvalue | b == x)
-  }
-  if (checkvalue == FALSE) stop("statistique non supportée")
-  
-  if (b == "moyenne") {
-    x <- mean(a, na.rm = ignoreNA, ...)
-  } else if (b == "ecart-type" | b == "sd" | b == "ecart type") {
-    x <- sd(b, na.rm = ignoreNA, ...)
-  } else if (a == "variance") {
-    x <- var(a, na.rm = ignoreNA, ...)
-  }
-  return(x)
-}
-decennie_a_partir_annee <- function(ANNEE) {
-  return(ANNEE - ANNEE %%
-           10)
-}
-recode_na = function(data,varname,value){
-  data %>% 
-    dplyr::mutate(!!rlang::sym(varname) := na_if(!!rlang::sym(varname),value))
-}
+source("R/functions.R", encoding = "UTF-8")
 
 # Import des données ----------------------------------------------------------
 # j'importe les données avec read_csv2 parce que c'est un csv avec des ;
 # et que read_csv attend comme separateur des ,
-df <- readr::read_csv2(
-  "individu_reg.csv",
-  col_names = TRUE,
+df <- arrow::read_parquet(
+  file="individu_reg.parquet",
   col_select = c("region", "aemm", "aged", "anai", "catl", "cs1", "cs2", "cs3",
-                "couple", "na38", "naf08", "pnai12", "sexe", "surf", "tp",
-                "trans", "ur")
+                 "couple", "na38", "naf08", "pnai12", "sexe", "surf", "tp",
+                 "trans", "ur")
 )
 
 # Traitements des données -----------------------------------------------
 
-df = recode_na(data=df,varname="na38",value="ZZ")
-df = recode_na(data=df,varname="trans",value="Z")
-df = recode_na(data=df,varname="tp",value="Z")
+df = recode_as_na(df=df,var_name="na38",value="ZZ")
+df = recode_as_na(df=df,var_name="trans",value="Z")
+df = recode_as_na(df=df,var_name="tp",value="Z")
 df[endsWith(df$naf08, "ZZZ"), "naf08"] <- NA
 
 str(df)
@@ -66,12 +37,32 @@ df$aged = as.numeric(df$aged)
 
 # Statistiques decriptives ------------------------------------------
 ## combien de professions ===========================================
-print("Nombre de professions (1 position) :")
-print(length(table(df$cs1)))
-print("Nombre de professions (2 positions) :''")
-print(length(table(df$cs2)))
-oprint("Nombre de professions (3 positions) :")
-print(length(table(df$cs3)))
+calculate_nb_professions = function(data,varname){
+  print("Nombre de professions :")
+  print(summarise(data, length(unique(unlist({{varname}}[!is.na({{varname}})])))))
+}
+calculate_nb_professions(data=df,varname=cs1)
+calculate_nb_professions(data=df,varname=cs2)
+calculate_nb_professions(data=df,varname=cs3)
+
+stats_age <- df2 |> 
+  group_by(decennie = decennie_a_partir_annee(age)) |>
+  summarise(n())
+
+table_age <- gt(stats_age) |>
+  tab_header(
+    title = "Distribution des âges dans notre population"
+  ) |>
+  fmt_number(
+    columns = `n()`,
+    sep_mark = " ",
+    decimals = 0
+  ) |>
+  cols_label(
+    decennie = "Tranche d'âge",
+    `n()` = "Population"
+  )
+
 
 print.data.frame <- summarise(group_by(df, aged), n())
 print(print.data.frame)
@@ -88,33 +79,31 @@ ggplot(df[df$aged > 50, c(3, 4)], aes(
   geom_histogram() # position = "dodge") + scale_fill_viridis_d()
 
 ## part d'homme dans chaque cohort ===========================
-ggplot(df %>% group_by(as.numeric(aged, sexe)) %>% summarise(SH_sexe = n()) %>% 
-         group_by(aged) %>% summarise(SH_sexe = SH_sexe / sum(SH_sexe))) %>% 
-  filter(sexe == 1) + 
-  geom_bar(aes(x = as.numeric(aged), y = SH_sexe), stat = "identity") + 
-  geom_point(aes(x = as.numeric(aged), y = SH_sexe), stat = "identity", 
+part_total <- function(data,var_groupe="age",var_interet="sexe"){
+  data |>
+    group_by(!!!syms(c(var_groupe,var_interet))) |>
+    summarise(share=n()) |>
+    group_by(!!sym(var_groupe)) |>
+    mutate(share=share/sum(share))
+}
+ggplot(df %>% part_total(var_groupe="aged",var_interet = "sexe")%>%
+         dplyr::filter(sexe=="Homme")) + 
+  geom_bar(aes(x = aged, y = share), stat = "identity") + 
+  geom_point(aes(x = aged, y = share), stat = "identity", 
              color = "red") + 
   coord_cartesian(c(0, 100))
-# correction (qu'il faudra retirer)
-# ggplot(
-#   df %>% group_by(aged, sexe) %>% summarise(SH_sexe = n()) 
-#   %>% group_by(aged) %>% mutate(SH_sexe = SH_sexe/sum(SH_sexe)) %>% filter(sexe==1)
-# ) + geom_bar(aes(x = as.numeric(aged), y = SH_sexe), stat="identity") + 
-# geom_point(aes(x = as.numeric(aged), y = SH_sexe), 
-# stat="identity", color = "red") + coord_cartesian(c(0,100))
-
 
 ## stats surf par statut ==============================================
-df3 <- tibble(df |> group_by(couple, surf) %>% summarise(x = n()) %>% 
-                group_by(couple) |> mutate(y = 100 * x / sum(x)))
-ggplot(df3) %>%
-  geom_bar(aes(x = surf, y = y, color = couple), stat = "identity", position = "dodge")
+df3 <- tibble(part_total(data=df,var_groupe="surf",var_interet = "couple"))
+
+ggplot(df3) +
+  geom_bar(aes(x = surf, y = share, color = factor(couple)), stat = "identity", position = "dodge")
 
 ## stats trans par statut =============================================
-df3 <- tibble(df |> group_by(couple, trans) %>% summarise(x = n()) %>% 
-                group_by(couple) |> mutate(y = 100 * x / sum(x)))
+df3 <- tibble(part_total(data=df,var_groupe="trans",var_interet = "couple"))
 p <- ggplot(df3) +
-  geom_bar(aes(x = trans, y = y, color = couple), stat = "identity", position = "dodge")
+  geom_bar(aes(x = trans, y = share, color = factor(couple)), stat = "identity", position = "dodge")
+p
 
 dir.create("/home/onyxia/formation-bonnes-pratiques-R/output")
 setwd("ome/onyxia/formation-bonnes-pratiques-R/output")

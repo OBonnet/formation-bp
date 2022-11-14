@@ -66,12 +66,12 @@ df$aged = as.numeric(df$aged)
 
 # Statistiques decriptives ------------------------------------------
 ## combien de professions ===========================================
-print("Nombre de professions :")
-print(summarise(df, length(unique(unlist(cs3[!is.na(cs1)])))))
-print("Nombre de professions :''")
-print(summarise(df, length(unique(unlist(cs3[!is.na(cs2)])))))
-oprint("Nombre de professions :")
-print(summarise(df, length(unique(unlist(cs3[!is.na(cs3)])))))
+print("Nombre de professions (1 position) :")
+print(length(table(df$cs1)))
+print("Nombre de professions (2 positions) :''")
+print(length(table(df$cs2)))
+oprint("Nombre de professions (3 positions) :")
+print(length(table(df$cs3)))
 
 print.data.frame <- summarise(group_by(df, aged), n())
 print(print.data.frame)

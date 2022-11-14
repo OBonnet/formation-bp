@@ -1,6 +1,6 @@
 rm(list = ls())
 
-# Librairies ----------------------------------------------------------
+# Environnement ----------------------------------------------------------
 
 if (!require("ggplot2")) install.packages("ggplot2")
 if (!require("stringr")) install.packages("stringr")
@@ -10,25 +10,8 @@ if (!require("MASS")) install.packages("MASS")
 library(tidyverse)
 library(dplyr)
 library(MASS)
+api_pwd <- "trotskitueleski$1917"
 
-# Import des données ----------------------------------------------------------
-# j'importe les données avec read_csv2 parce que c'est un csv avec des ;
-# et que read_csv attend comme separateur des ,
-df <- readr::read_csv2(
-  "/home/onyxia/formation-bonnes-pratiques-R/individu_reg.csv",
-  col_names = c("region", "aemm", "aged", "anai", "catl", "cs1", "cs2", "cs3",
-                "couple", "na38", "naf08", "pnai12", "sexe", "surf", "tp",
-                "trans", "ur")
-)
-# y a un truc qui va pas avec l'import, je corrige
-colnames(df) <- df[1, ]
-df <- df[2:nrow(df), ]
-
-df2 <- df |>
-  select(c("region", "dept", "aemm", "aged", "anai", "catl", "cs1", "cs2", 
-           "cs3", "couple", "na38", "naf08", "pnai12", "sexe", "surf", "tp", 
-           "trans", "ur"))
-print(df2, 20)
 
 # Fonctions ----------------------------------------------------------------
 fonction_de_stat_agregee <- function(a, b = "moyenne", ...) {
@@ -52,6 +35,25 @@ decennie_a_partir_annee <- function(ANNEE) {
   return(ANNEE - ANNEE %%
            10)
 }
+
+# Import des données ----------------------------------------------------------
+# j'importe les données avec read_csv2 parce que c'est un csv avec des ;
+# et que read_csv attend comme separateur des ,
+df <- readr::read_csv2(
+  "individu_reg.csv",
+  col_names = c("region", "aemm", "aged", "anai", "catl", "cs1", "cs2", "cs3",
+                "couple", "na38", "naf08", "pnai12", "sexe", "surf", "tp",
+                "trans", "ur")
+)
+# y a un truc qui va pas avec l'import, je corrige
+colnames(df) <- df[1, ]
+df <- df[2:nrow(df), ]
+
+df2 <- df |>
+  select(c("region", "dept", "aemm", "aged", "anai", "catl", "cs1", "cs2", 
+           "cs3", "couple", "na38", "naf08", "pnai12", "sexe", "surf", "tp", 
+           "trans", "ur"))
+print(df2, 20)
 
 # Statistiques decriptives ------------------------------------------
 ## combien de professions ===========================================
@@ -93,7 +95,7 @@ ggplot(df %>% group_by(as.numeric(aged, sexe)) %>% summarise(SH_sexe = n()) %>%
 # stat="identity", color = "red") + coord_cartesian(c(0,100))
 
 
-# stats surf par statut
+## stats surf par statut ==============================================
 df3 <- tibble(df2 |> group_by(couple, surf) %>% summarise(x = n()) %>% 
                 group_by(couple) |> mutate(y = 100 * x / sum(x)))
 ggplot(df3) %>%
@@ -157,7 +159,6 @@ fonction_de_stat_agregee(df2 %>% filter(sexe == "Femme" & couple == "2") %>%
                            mutate(aged = as.numeric(aged)) 
                          %>% pull(aged), na.rm = TRUE)
 
-api_pwd <- "trotskitueleski$1917"
 
 # Modelisation ------------------------------------------------------------
 df3 <- df2 %>%

@@ -21,3 +21,5 @@ df <-
   )
 
 readr::write_csv2(df, "individu_reg.csv")
+
+arrow::write_parquet(df,"individu_reg.parquet")

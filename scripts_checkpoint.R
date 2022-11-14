@@ -16,7 +16,7 @@ decennie_a_partir_annee <- function(annee) {
   return(annee - annee %% 10)
 }
 # fonction de stat agregee
-stats_agregees <- function(a, b = "moyenne",
+stats_agregees <- function(a, stat = "moyenne",
                            ...) {
   match.arg(b,
             c("moyenne",
@@ -26,7 +26,7 @@ stats_agregees <- function(a, b = "moyenne",
               "ecart type")
   )
   
-  switch(b,
+  switch(stat,
          moyenne = mean(a, ...),
          variance = var(a, ...),
          sd(a, ...)
@@ -80,8 +80,12 @@ df2$sexe <- df2$sexe %>%
 # COMPTE PROFESSIONS =================
 
 # combien de professions
-print("Nombre de professions :")
-print(summarise(df2, length(unique(unlist(cs3[!is.na(cs3)])))))
+calculate_nb_professions = function(data,varname){
+  print("Nombre de professions :")
+  print(summarise(data, length(unique(unlist(!!rlang::sym(varname)[!is.na(!!rlang::sym(varname))])))))
+}
+calculate_nb_professions(df2,cs3)
+
 print("Nombre de professions :")
 print(summarise(df2, length(unique(unlist(cs2[!is.na(cs2)])))))
 print("Nombre de professions :")

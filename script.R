@@ -10,8 +10,8 @@ library(tidyverse)
 library(dplyr)
 library(MASS)
 library(forcats)
-api_pwd <- "trotskitueleski$1917"
-
+library(yaml)
+api_pwd <- yaml::read_yaml("secrets.yaml")
 
 # Fonctions ----------------------------------------------------------------
 fonction_de_stat_agregee <- function(a, b = "moyenne", ...) {
